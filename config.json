@@ -1,13 +1,25 @@
 {
-	"prefix":"{COMMAND PREFIX}",
-	"token":"{BOT TOKEN}",
-	"voicechannel":"{VOICE CHANNEL ID}",
-	"logchannel":"{TEXT CHANNEL ID}",
-	"activity":"{DEFAULT BOT ACTIVITY}",
+	"prefix":"+",
+	"token":"{YOUR DISCORD TOKEN}",
+	"logchannel":"801084773300174919",
 	"list":[
-	{
-		"name":"{RADIO NAME}",
-		"url":"{RADIO URL}"
-	}
+		{
+			"name":"Something",
+			"url":"http://blabla.com"
+		}
+	],
+	"radio":[
+		{
+			"name":"Radio Sega",
+			"url":"http://content.radiosega.net:8006/live"
+		},
+		{
+			"name":"Gem 106",
+			"url":"http://tx.planetradio.co.uk/icecast.php?i=gem106.mp3"
+		},
+		{
+			"name":"Manchester Gay Radio",
+			"url":"http://icepool.silvacast.com/ESCRADIO.mp3"
+		}
 	]
 }
