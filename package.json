@@ -12,8 +12,8 @@
     "radio"
   ],
   "repository": {
-    "type" : "git",
-    "url" : "https://github.com/leinstay/discobot.git"
+    "type": "git",
+    "url": "https://github.com/leinstay/discobot.git"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -21,8 +21,7 @@
   "author": "Vladimir \"Leinstay\" Belyaev",
   "license": "MIT",
   "dependencies": {
-    "@discordjs/opus": "^0.1.0",
-    "cron": "^1.8.2",
+    "@discordjs/opus": "^0.3.3",
     "discord.js": "^12.1.1",
     "ffmpeg": "0.0.4",
     "fluent-ffmpeg": "^2.1.2",
