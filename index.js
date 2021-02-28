@@ -1,5 +1,5 @@
 const Discord = require('discord.js');
-const radio = require("./radio.js")
+const functions = require("./functions.js")
 const client = new Discord.Client({
     presence:{
         activity: {
@@ -22,34 +22,38 @@ const {
 } = require('./config.json');
 
 
-let stationPlaying;
-let streamPlaying;
-let streamConnection;
-let streamDispatcher;
-
-client.once('ready', async () => {
-	console.log(`Locked and loaded! - ${stationDirectoryLength} stations ready!`);
+client.once('ready', () => {
+	console.log(`Locked and loaded!`);
+    client.channels.fetch(logchannel)
+    .then(channel => {
+        functions.configLogChannel(channel);
+        console.log("Log channel not configured");
+    })
+    .catch(error => console.log(error + "\tSomething went wrong"));
 });
 
-
 client.on('message', async message => {
+    const isInVoice = () => {
+        //Checks if the member is in a voice channel
+        if(message.member?.voice?.channel === null)
+            {message.channel.send("You are currently not in a voice channel"); return false;}
+        //Checks if the member is in the same voice channel as the bot
+        if(message.guild?.voice?.channel?.id !== null && message.guild?.voice?.channel?.id !== message.member?.voice?.channel?.id)
+            {message.channel.send("You must be in the same channel as the bot to perform this command"); return false;}
+        return true;
+    }
 	//Ignores the message if sent from a bot
 	if(message.author.bot || message.channel.type === "dm" ) return;
 
-    
     if (message.content.startsWith(prefix)){
         const args = message.content.slice(prefix.length).trim().split(/ +/);
         const command = args.shift();
-        //Checks if the member is in a voice channel
-        if(message.member?.voice?.channel === null)
-            return message.channel.send("You are currently not in a voice channel");
-        //Checks if the member is in the same voice channel as the bot
-        if(message.guild?.voice?.channel?.id !== undefined && message.guild?.voice?.channel?.id !== message.member?.voice?.channel?.id)
-            return message.channel.send("You must be in the same channel as the bot to perform this command");
 
         switch(command){
             case("radio"):
-                radio(args, message.member.voice.channel);
+                if(isInVoice) functions.commandRadio(message.member.voice.channel, args);
+            case("list"):
+                functions.commandList();
             default: (message.channel.send("Invalid command"))
         }
     }
