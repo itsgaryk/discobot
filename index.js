@@ -27,7 +27,7 @@ client.once('ready', () => {
     client.channels.fetch(logchannel)
     .then(channel => {
         functions.configLogChannel(channel);
-        console.log("Log channel not configured");
+        console.log("Log channel configured for functions.js");
     })
     .catch(error => console.log(error + "\tSomething went wrong"));
 });
@@ -52,8 +52,11 @@ client.on('message', async message => {
         switch(command){
             case("radio"):
                 if(isInVoice) functions.commandRadio(message.member.voice.channel, args);
+                break;
             case("list"):
-                functions.commandList();
+                //functions.commandList();
+            case("countries"):
+                functions.commandCountries();
             default: (message.channel.send("Invalid command"))
         }
     }

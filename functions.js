@@ -5,21 +5,22 @@ const AbortController = require("abort-controller")
 const player = require("./player.js")
 
 const testMe = "hello"
+let stream;
 let logchannel;
 let icyReader;
-let radiostation;
+let radioStation;
 let nowPlaying;
-const stream = {connection:null, dispatcher:null}
+
 const stationDirectory = require("./stations-database.json");
 const stationDirectoryLength = stationDirectory.length;
 const stationCustomDirectory = require("./stations-saved.json");
 
 //only used internall by stationDirectoryCountries
-const getCountries = () => {
+function getCountries(){
 	const newList = [];
 	for(let i = 0; i < stationDirectoryLength; i++){
-		if(!newList.some(i => i === stationDirectory[i]?.country))
-			newList.push(stationDirectory[i].country)
+		if(!newList.some(item => item === stationDirectory[i].country))
+			newList.push(stationDirectory[i].country);
 	}
 	return newList;
 }
@@ -29,6 +30,8 @@ const stationDirectoryCountries = getCountries();
 module.exports = {
 	configLogChannel,
 	commandRadio,
+	commandCountries,
+	commandStop
 }
 
 //Used in client.once("ready") to get the Discord channel object
@@ -44,43 +47,48 @@ function commandRadio(voice, args){
 
 	//0 Arguments - Plays a random radio station from the database
 	if(args[0] === undefined){
-		const randomStation = getRandomStation(stationDirectory)
-			playRadio(voice, randomStation)
+		playRadio(voice, getRandomStation(stationDirectory), "random");
 		return;
 	}
-/*
+
 	//1 Argument only
 	if(args[1] === undefined){
 		//Checks if the argument is a number (for saved stations)
 		try{
 			const checkNumber = Number.parseInt(args[0]);
-			for(let i = 0; i < list.length; i++){
-				if (Number (arg) === i+1){
-					validateURL(voice, stationList[arg])
-					return true;		
+			for(let i = 0; i < stationCustomDirectory.length; i++){
+				if (checkNumber === i+1){
+					playRadio(voice, stationCustomDirectory[i])
+					return;
 				}
 			}
-		} catch (e){}
+		} catch (e){console.log(e)}
+
 		//Checks if the argument is a URL
 		try{
 			const testURL = new URL (args[0]);
-			functions.validateURL()
+			playRadio(voice, {url:args[0]});
+			return;
 		} catch(e){}
 	}
 
 	//Checks if the arguments are a country - a country can be more than 1 word
-	const country = args.join(" ")
-	for(let i = 0; i < countries.length; i++)
-		if(countries[i].toLowerCase() === country)){
-			const newList = radios.map(i => i.country === country);
-			playRadio()
+	const country = args.join(" ");
+	
+	for(let i = 0; i < stationDirectoryCountries.length; i++){
+		if(stationDirectoryCountries[i].toLowerCase() === country){
+			const newList = [];
+			for(const item of stationDirectory){
+				if(item.country.toLowerCase() === country) newList.push(item);
+			}
+			playRadio(voice, getRandomStation(newList), "random");
 			return;
 		}
 	}
-
+/*
 	//Checks if the first argument is one of the radio properties
 	const attributes = Object.keys(radios[0])
-	args.shift()
+	const attribute = args.shift()
 	//Iterating stations in the database
 	const newList = radios.map(i => {
 		//Iterating attributes
@@ -106,58 +114,64 @@ function commandRadio(voice, args){
 */
 }
 
-function playRadio(voice, station){
+function commandCountries(){
+	clientLogMessage("Countires for the radio search\n" + stationDirectoryCountries.join("\t"));
+}
 
-	//Checks if URL is valid
-	const validateURL = async (url) => {
-		console.log(`Checking radio station ${station.name} - ${station.url}`);
-	
-		const controller = new AbortController();
-		const signal  = controller.signal
-		const timeout = setTimeout(() => controller.abort(), 1000);
-	
-		await fetch(url, {signal: controller.signal})
-		.catch(error => console.log(error.code + "\tInvalid URL or SHOUTCAST server is not responding"))
-		clearTimeout(timeout);	
-	}
-	
-	const getICY = (url) => {
-		if(icyReader !== undefined) icyReader.removeAllListeners();
-	
-		icy.get(url, i => {
+function commandStop(){
+	if(icyReader !== undefined) icyReader.removeAllListeners();
+
+	stream.disaptcher.destroy();
+	clientLogMessage("Playback is stopped");
+}
+
+function playRadio(voice, station, random){
+	const getICY = () => {
+		icy.get(station.url, i => {
 			icyReader = i;
+			
 			i.on('metadata', metadata => {
-					
 					let icyData = icy.parse(metadata);
 					if(icyData?.StreamTitle){
-						nowPlaying = icyData.StreamTitle;
-						clientLogMessage("Now playing: " + icyData.StreamTitle)
+						if(nowPlaying !== icyData.StreamTitle){
+							nowPlaying = icyData.StreamTitle;
+							clientLogMessage("Now playing: " + icyData.StreamTitle)
+						}
 					}
 					else
-						streamPlaying = `Unable to retrieve song info`;
+						streamPlaying = `Unable to find track info`;
 			})
 	
 			i.on("error", error => {
 				console.log(error.code)
 				clientLogMessage("Unable to retrieve song info");
-				controller.abort();
 			})
-	
+
 			i.resume();
 		})
 	}
 
-	validateURL().then(() => {
+	if (radioStation?.url === station.url){
+		clientLogMessage("Radio sation is already playing");
+		return;
+	}
+
+	console.log(`Checking radio station ${station.name} - ${station.url}`);
+	validateURL(station.url).then(e => {
+		if(icyReader !== undefined) icyReader.removeAllListeners();
+		if(stream !== undefined) stream.destroy();
+
+		//If only the URL is present (custom radio station)
 
 		//Populates property values with null if empty or non-existent
-		if(station?.name === null)
+		if(station?.name === null){
 			clientLogMessage("Connected to unknown radio station")
 			station.name = null;
+		}
 		//If all properties are present send the full message
 		if(station?.name !== null && station?.location !== null && station?.country !== null)
 			clientLogMessage(`**Connected to Radio Station:** \`${station?.name}\`\t **From:** \`${station?.location}, `
 		+ `${station?.country}\`\t **Website:** \`${station?.website}\``);
-
 		if(station?.location === null)
 			station.location = null;
 		if(station?.country === null)
@@ -165,14 +179,27 @@ function playRadio(voice, station){
 
 		radioStation = station;
 
-		getICY(stream.station.url)
-		playRadio(voice, stream)
+		//radioStation = station;
+		getICY();
+		player(voice, stream, station.url, clientLogMessage);
 	})
-	.catch(error => console.log(error.code + "\tSomething went wrong"));
+	.catch(error => {
+		console.log("Invalid URL or SHOUTCAST server is not responding");
+		if(random === "random") console.log("oui!");
+	});
+}
+
+async function validateURL(url){
+	const controller = new AbortController();
+	const signal  = controller.signal
+	const timeout = setTimeout(() => controller.abort(), 1000);
+
+	await fetch(url, {signal: controller.signal})
+	clearTimeout(timeout);
 }
 
 function clientLogMessage(message) {
-	logchannel.send(message)
+	logchannel.send(message);
 	console.log(message);
 }
 /*
