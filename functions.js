@@ -1,3 +1,4 @@
+const fs = require("fs")
 const icy = require("icy")
 const fetch = require("node-fetch");
 const AbortController = require("abort-controller")
@@ -6,18 +7,21 @@ const stationDirectory = require("./stations-directory.json");
 const stationSaved = require("./stations-saved.json");
 const randomStationList = [];
 
-let logchannel;
-let icyReader;
-let autoNowPlaying;
-let radioStation;
-let nowPlaying;
+let logchannel = null;
+let icyReader = null;
+let autoNowPlaying = null;
+let radioStation = null;
+let nowPlaying = null;
 
-let streamConnection;
-let streamDispatcher;
+let streamConnection = null;
+let streamDispatcher = null;
 
 module.exports = {
 	configLogChannel,
 	commandRadio,
+	commandList,
+	commandInfo,
+	commandSave,
 	commandStop,
 	commandAuto
 }
@@ -27,13 +31,26 @@ function configLogChannel(channel){
 	logchannel = channel
 }
 
+function commandList(args){
+		clientLogMessage("Saved radio stations. Enter +radio [number] e.g. \`+radio 1\` to play it\n\n" +
+			stationSaved.map(i => stationSaved.indexOf(i)+1 + ".\t" + i.name + "\n").join(""));
+		/*
+		if(args[0] !== undefined) Number.parseInt(args[0]);
+		if(args[1] !== undefined) return clientLogMessage("Error: only one argument allowed");
+		if(args[0] > stationSaved.length) return clientLogMessage("Error: invalid number. You can only enter a number up to " + stationSaved.length);
+		const stations = stationSaved.filter(i => stationSaved.indexOf(i)>=1+args[0]*10 &&  list.indexOf(i)>=1+args[0]*10+10)
+		clientLogMessage(`Displaying radio stations ${i+(args[0]*10)} - ${args[0]*10+10}` +
+			"Favourited stations. Enter +radio [number] e.g. \`+radio 1\`\n\n" + stations.map(i => stationSaved.indexOf(i)+1 + ".\t" + i.name + "\n").join(""));
+		*/
+}
+
 //Returns a random radio station from a submitted list
 function getRandomStation(list){
 		return list[Math.floor(Math.random() * Math.floor(list.length))];
 	}
 
 function commandAuto(){
-	if(icyReader !== undefined){
+	if(icyReader !== null){
 		if(icyReader.isPaused())
 		{
 			autoNowPlaying === true;
@@ -118,7 +135,7 @@ function commandRadio(voice, args){
 			return;
 		}
 		if(randomStationList.length > 1){
-			clientLogMessage(`Found ${randomStationList.length} result for **${attribute}** - \`${args.join(" ")}\``,);
+			clientLogMessage(`Found ${randomStationList.length} results for **${attribute}** - \`${args.join(" ")}\``,);
 			playRadio(voice, getRandomStation(randomStationList), "filter")
 			return;
 		}
@@ -128,11 +145,14 @@ function commandRadio(voice, args){
 }
 
 function commandStop(){
-	if(streamDispatcher !== undefined){
+	if(streamDispatcher !== null){
 		streamDispatcher.destroy();
-		if(icyReader !== undefined) icyReader.removeAllListeners();
-		if(streamConnection !== undefined) streamConnection.removeAllListeners();
+		radioStation = null;
+		nowPlaying = null;
+		if(icyReader !== null) icyReader.removeAllListeners();
+		if(streamConnection !== null) streamConnection.removeAllListeners();
 		//clientLogMessage("Playback is stopped")
+		
 	}
 	else{
 		clientLogMessage("Nothing is currently playing");
@@ -176,7 +196,7 @@ function playRadio(voice, station, type){
 				nowPlaying = `Unable to find track info`;
 				clientLogMessage(nowPlaying);
 				i.destroy();
-				icyData = undefined;
+				icyData = null;
 			})
 			i.resume();
 		})
@@ -191,7 +211,7 @@ function playRadio(voice, station, type){
 	validateURL(station.url).then(() => {
 		console.log("SUCCESS: validated stream URL")
 
-		if(streamDispatcher !== undefined) commandStop();
+		if(streamDispatcher !== null) commandStop();
 		radioStation = station;
 		//If all properties are present send the full message
 		let counter = 0;
@@ -217,9 +237,9 @@ function playRadio(voice, station, type){
 		console.log(error + "Invalid URL or SHOUTCAST server took too long to respond");
 		switch(type){
 			case "random":
-				playRadio(voice, getRandomStation(stationDirectory)); break;
+				playRadio(voice, getRandomStation(stationDirectory), "random"); break;
 			case "filter":
-				if(randomStationList.length > 0) playRadio(voice, getRandomStation(randomStationList)); break;
+				if(randomStationList.length > 5) playRadio(voice, getRandomStation(randomStationList), "filter"); break;
 			default:
 				clientLogMessage("Failed to connect to radio station"); break;
 
@@ -239,38 +259,36 @@ function clientLogMessage(message) {
 	logchannel.send(message);
 	//console.log(message);
 }
-/*
-function getStationInfo(){
-	if(radioPlaying?.url === "" || radioPlaying?.name === "")
-		clientLogMessage("Currently not playing a radio station");
-	else
-		internetRadio.getStationInfo(radioPlaying.url, (error, station) => {
-			if(radioPlaying?.location === null)
-				clientLogMessage(`**You're listening to **\`${radioPlaying.name}\``);
-			else
-				clientLogMessage(`**You're listening to **\`${radioPlaying.name}\` **playing from** 
-				\`${radioPlaying.location}, ${radioPlaying.country}\` - \`${radioPlaying.website}\``);
-			if(station?.title === null || station?.title === "")
-				clientLogMessage(`Unable to retrieve song info`);
-			else
-				clientLogMessage(`Currently Playing: \`${station?.title}\``);
-			}, internetRadio.StreamSource.STREAM);
-}
 
-function commandList(){
-	//theMessage.push("List of available radio stations.\n");
-	const stations = list.map(i => list.indexOf(i)+1 + ".\t" + i.name + "\n");
-	clientLogMessage("Favourited stations. Enter +radio [number] e.g. \`+radio 1\`\n\n" + stations.join(""));
+function commandInfo(){
+	if(radioStation === null){
+		clientLogMessage("Nothing is currently playing");
+	}else{
+		if(radioStation?.location === null)
+			clientLogMessage(`**You're listening to **\`${radioStation.name}\`\nCurrently Playing: ${nowPlaying}`);
+		else
+			clientLogMessage(`**You're listening to** \`${radioStation.name}\`\t**Broadcasting from** \`${radioStation.location}, ${radioStation.country}\`\nCurrently Playing: ${nowPlaying}`);
+	}
 }
 
 function commandSave(){
-	list.push(radioStation);
-	fs.writeFileSync(JSON.stringify(list))
+	if(radioStation === null){
+		clientLogMessage("A radio station must be playing in order to be saved");
+	}else{
+		for(const item of stationSaved){
+			if (item.url === radioStation){
+				clientLogMessage("The radio station is already in the list");
+				return
+			}
+		}
+		stationSaved.push(radioStation);
+		fs.writeFileSync("stations-saved.json",JSON.stringify(stationSaved, null, 2));
+		clientLogMessage("Station successfully added to your favourite list");
+	}
 }
-*/
 
 function playStream(voice){
-    if(streamConnection === undefined)
+    if(streamConnection === null)
         voice.join()
 		.then(async connection => {
 			streamConnection = connection;

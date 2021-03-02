@@ -62,18 +62,18 @@ client.on('message', async message => {
         const command = args.shift();
 
         switch(command){
+            case("info"):
+                if(isInVoice()) functions.commandInfo(); break;
             case("auto"):
-                functions.commandAuto();
-                break;
+                functions.commandAuto();break;
+            case("save"):
+                if(isInVoice()) functions.commandSave(); break;
             case("radio"):
-                if(isInVoice()) functions.commandRadio(message.member.voice.channel, args);
-                break;
+                if(isInVoice()) functions.commandRadio(message.member.voice.channel, args); break;
             case("list"):
-                //functions.commandList();
-                break;
+                functions.commandList(args); break;
             case("stop"):
-                if(isInVoice()) functions.commandStop();
-                break;
+                if(isInVoice()) functions.commandStop(); break;
             default: (message.channel.send("Invalid command"))
         }
     }
