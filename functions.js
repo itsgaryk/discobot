@@ -55,13 +55,13 @@ function commandAuto(){
 		{
 			autoNowPlaying === true;
 			icyReader.resume();
-			clientLogMessage("Auto \"Now Playing\" is turned on");
+			clientLogMessage("Automatic \"Now Playing\" messages are enabled");
 		}
 		else
 		{
 			autoNowPlaying === false;
 			icyReader.pause();
-			clientLogMessage("Auto \"Now Playing\" is turned off");
+			clientLogMessage("Automatic \"Now Playing\" messages are disabled");
 		}
 	}
 	else
